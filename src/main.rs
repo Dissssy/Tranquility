@@ -1,4 +1,3 @@
-// did git break?
 mod postwo;
 mod smooth;
 
@@ -14,7 +13,7 @@ use minifb::Scale;
 use palette::float::Float;
 use postwo::Pos2;
 use rayon::prelude::*;
-// use rodio::{self, Decoder, OutputStream};
+
 use audio_visualizer::dynamic::live_input::{list_input_devs, AudioDevAndCfg};
 use audio_visualizer::dynamic::{live_input::setup_audio_input_loop, window_top_btm::TransformFn};
 use cpal::{
@@ -30,23 +29,6 @@ use spectrum_analyzer::{samples_fft_to_spectrum, FrequencyLimit, FrequencyValue}
 use std::cmp::max;
 
 use serde::{Deserialize, Serialize};
-
-// const RESOLUTION: (usize, usize) = (3840, 2160);
-// const ASPECTRATIO: f32 = RESOLUTION.0 as f32 / RESOLUTION.1 as f32;
-// const SCALE: Scale = Scale::X1;
-// const TOTALSPEED: f32 = 0.05;
-// const MAXSPEED: f32 = 0.99 * TOTALSPEED;
-// const MINSPEED: f32 = TOTALSPEED - MAXSPEED;
-// // const MAXDAMPING: f32 = 0.99;
-// // const MINDAMPING: f32 = 0.01;
-// const TOTALDAMPING: f32 = 0.995;
-// const MAXDAMPING: f32 = 0.99 * TOTALDAMPING;
-// const MINDAMPING: f32 = TOTALDAMPING - MAXDAMPING;
-// const POINTCOUNT: usize = 100000;
-// const AVERAGECOLOR: f64 = 328.5;
-// const SCALINGFACTOR: f32 = 2.5;
-// const INVERTING: bool = true;
-// const SHOWCURSOR: bool = false;
 
 #[derive(Debug, Clone, Copy)]
 struct Settings {
@@ -83,7 +65,6 @@ struct SettingsFromFile {
 
 impl Settings {
     pub fn from_file(path: &str) -> Settings {
-        // load the file and deserialize it with serde
         let file = std::fs::read_to_string(path).unwrap();
         let settings_from_file: SettingsFromFile = serde_json::from_str(&file).unwrap();
 
@@ -103,48 +84,33 @@ impl Settings {
                 32 => Scale::X32,
                 _ => Scale::X1,
             },
-            // const TOTALSPEED: f32 = 0.05;
+
             TOTALSPEED: settings_from_file.TOTALSPEED,
-            // const MAXSPEED: f32 = 0.99 * TOTALSPEED;
+
             MAXSPEED: settings_from_file.MAXSPEED * settings_from_file.TOTALSPEED,
-            // const MINSPEED: f32 = TOTALSPEED - MAXSPEED;
+
             MINSPEED: settings_from_file.TOTALSPEED
                 - (settings_from_file.MAXSPEED * settings_from_file.TOTALSPEED),
-            // const TOTALDAMPING: f32 = 0.995;
+
             TOTALDAMPING: settings_from_file.TOTALDAMPING,
-            // const MAXDAMPING: f32 = 0.99 * TOTALDAMPING;
+
             MAXDAMPING: settings_from_file.MAXDAMPING * settings_from_file.TOTALDAMPING,
-            // const MINDAMPING: f32 = TOTALDAMPING - MAXDAMPING;
+
             MINDAMPING: settings_from_file.TOTALDAMPING
                 - (settings_from_file.MAXDAMPING * settings_from_file.TOTALDAMPING),
-            // const POINTCOUNT: usize = 100000;
+
             POINTCOUNT: settings_from_file.POINTCOUNT,
-            // const AVERAGECOLOR: f64 = 328.5;
+
             AVERAGECOLOR: settings_from_file.AVERAGECOLOR,
-            // const SCALINGFACTOR: f32 = 2.5;
+
             SCALINGFACTOR: settings_from_file.SCALINGFACTOR,
-            // const INVERTING: bool = true;
+
             INVERTING: settings_from_file.INVERTING,
-            // const SHOWCURSOR: bool = false;
+
             SHOWCURSOR: settings_from_file.SHOWCURSOR,
         }
     }
 }
-
-// const RESOLUTION: (usize, usize) = (3840, 2160);
-// const ASPECTRATIO: f32 = RESOLUTION.0 as f32 / RESOLUTION.1 as f32;
-// const SCALE: Scale = Scale::X1;
-// const TOTALSPEED: f32 = 0.05;
-// const MAXSPEED: f32 = 0.99 * TOTALSPEED;
-// const MINSPEED: f32 = TOTALSPEED - MAXSPEED;
-// const TOTALDAMPING: f32 = 0.995;
-// const MAXDAMPING: f32 = 0.99 * TOTALDAMPING;
-// const MINDAMPING: f32 = TOTALDAMPING - MAXDAMPING;
-// const POINTCOUNT: usize = 100000;
-// const AVERAGECOLOR: f64 = 328.5;
-// const SCALINGFACTOR: f32 = 2.5;
-// const INVERTING: bool = true;
-// const SHOWCURSOR: bool = false;
 
 impl Settings {
     pub fn default() -> Self {
@@ -188,7 +154,6 @@ impl Color {
         }
     }
     fn from_hsva(h: f32, s: f32, v: f32, a: f32) -> Self {
-        // h s v and a are all between 0.0 and 1.0
         let h = h.fract();
         let s = s.max(0.0).min(1.0);
         let v = v.max(0.0).min(1.0);
@@ -246,7 +211,7 @@ impl Mul<Color> for Color {
 
 fn main() {
     let mut settings = Settings::from_file("settings.json");
-    // let mut settings1 = Settings::default();
+
     let WIDTH: usize = match settings.SCALE {
         Scale::FitScreen => settings.RESOLUTION.0,
         Scale::X1 => settings.RESOLUTION.0,
@@ -269,10 +234,9 @@ fn main() {
     let visualize_spectrum: RefCell<Vec<(f64, f64)>> = RefCell::new(vec![(0.0, 0.0); 1024]);
     let to_spectrum_fn = move |audio: &[f32], sampling_rate: f32| {
         let skip_elements = audio.len() - 2048;
-        // spectrum analysis only of the latest 46ms
+
         let relevant_samples = &audio[skip_elements..skip_elements + 2048];
 
-        // do FFT
         let hann_window = hann_window(relevant_samples);
         let latest_spectrum = samples_fft_to_spectrum(
             &hann_window,
@@ -282,14 +246,11 @@ fn main() {
         )
         .unwrap();
 
-        // now smoothen the spectrum; old values are decreased a bit and replaced,
-        // if the new value is higher
         latest_spectrum
             .data()
             .iter()
             .zip(visualize_spectrum.borrow_mut().iter_mut())
             .for_each(|((fr_new, fr_val_new), (fr_old, fr_val_old))| {
-                // actually only required in very first iteration
                 *fr_old = fr_new.val() as f64;
                 let old_val = *fr_val_old * 0.84;
                 let max = max(
@@ -311,19 +272,9 @@ fn main() {
         }),
     );
     let _audio_data_transform_fn = TransformFn::Complex(&to_spectrum_fn);
-    // let (_stream, stream_handle) = OutputStream::try_default().unwrap();
-    // // Load a sound from a file, using a path relative to Cargo.toml
-    // let file = File::open("./stero.mp3").unwrap();
-    // let mut audio = BufReader::new(file);
-    // let source = Decoder::new(audio).unwrap();
-    // let sink = rodio::Sink::try_new(&stream_handle).unwrap();
-    // sink.append(source);
-    // sink.play();
 
-    // println!("{}", SCALE as usize);
     let mut points = get_points(settings);
 
-    // create a minifb window
     let mut buffer: Vec<u32> = vec![0; WIDTH * HEIGHT];
     let mut window = minifb::Window::new(
         "Hello World - ESC to exit",
@@ -344,16 +295,16 @@ fn main() {
     });
 
     let mut debounce = false;
-    // while the window is open, graph the smooth value, relative to the center of the window
+
     let sample_rate = input_dev_and_cfg.cfg().sample_rate.0 as f32;
     let latest_audio_data = init_ringbuffer(sample_rate as usize);
     let _audio_buffer_len = latest_audio_data.lock().unwrap().len();
     let stream = setup_audio_input_loop(latest_audio_data.clone(), input_dev_and_cfg);
-    // This will be 1/44100 or 1/48000; the two most common sampling rates.
+
     let _time_per_sample = 1.0 / sample_rate as f64;
-    // window.limit_update_rate(Some(std::time::Duration::from_micros(166000)));
+
     window.limit_update_rate(None);
-    // start recording; audio will be continuously stored in "latest_audio_data"
+
     stream.play().unwrap();
     let mut current_target = Pos2 { x: 0., y: 0. };
     let _alternate = false;
@@ -365,17 +316,8 @@ fn main() {
     let mut settingstest = false;
     max.speed = 0.1;
     while window.is_open() && !window.is_key_down(minifb::Key::Escape) {
-        // if settingstest {
-        //     std::mem::swap(&mut settings, &mut settings1);
-        // }
-        // settingstest = !settingstest;
-
-        // let mut spectrum = vec![(0.0, 0.0); 2048];
-        // let slice = Some(2048 * 22);
         let slice: Option<usize> = None;
         if let Ok(latest_audio_data) = latest_audio_data.clone().try_lock() {
-            // latest_audio_data.fill_with(|| 0.0);
-            // spectrum = to_spectrum_fn(&latest_audio_data.to_vec(), sample_rate);
             spectrum = latest_audio_data.to_vec();
             if let Some(slice) = slice {
                 let skip_elements = spectrum.len() - slice;
@@ -383,29 +325,24 @@ fn main() {
             }
         }
         let _thismaxvalue = spectrum.iter().fold(0.0, |acc, x| -> f32 { acc.max(*x) });
-        // if thismaxvalue > max.target {
-        //     max.target = thismaxvalue;
-        // }
+
         let maxindex = spectrum.len();
 
         let mut pointstodraw: Vec<Option<(usize, Color)>> = spectrum
             .par_iter()
             .enumerate()
             .map(|(i, f)| {
-                // x = cos(theta) * f
-                // y = sin(theta) * f
                 let theta = ((i as f32 / maxindex as f32) + 0.25) * 2.0 * std::f32::consts::PI;
                 let x = theta.cos() * f.abs().sqrt().sqrt().cos() / max.value;
                 let y = theta.sin() * f.abs().sqrt().sqrt().cos() / max.value;
-                // center the points
+
                 let x = x + WIDTH as f32 / 2.0;
                 let y = y + HEIGHT as f32 / 2.0;
-                // get the index on the screen that the point should be drawn at
+
                 if x > 0.0 && x < WIDTH as f32 && y > 0.0 && y < HEIGHT as f32 {
                     let index = (x as usize) + (y as usize) * WIDTH;
 
                     Some((
-                        // (*f * WIDTH as f32 * HEIGHT as f32) as usize,
                         index,
                         Color::from_hsva(
                             ((i as f64 / maxindex as f64) as f32 + hoffset) % 1.,
@@ -420,11 +357,9 @@ fn main() {
             })
             .collect();
 
-        // if pointstodraw contains a None value. decrease the target
         if scaling {
             let nones = pointstodraw.par_iter().filter(|x| x.is_none()).count();
             if nones > 0 {
-                // max.target = max.target * 1. + (0.000001 * nones as f32);
                 max.target *= 1.5;
                 scaling = false;
             } else {
@@ -432,62 +367,11 @@ fn main() {
             }
         }
 
-        // let mut x = 0.;
-        // let mut y = 0.;
-        // let mut alt = false;
-        // let mut divby = 0.;
-        // for m in data.iter() {
-        //     if alt {
-        //         y += m;
-        //     } else {
-        //         x += m;
-        //         divby += 1.;
-        //     }
-        //     alt = !alt;
-        // }
-        // let x = (x / divby) * 100.;
-        // let y = (y / divby) * 100.;
-
-        // let x = x.min(1.);
-        // let y = y.min(1.);
-        // let maxpointstuff = spectrum
-        //     .iter()
-        //     .enumerate()
-        //     .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-        //     .unwrap()
-        //     .0;
-        // let minpointstuff = spectrum
-        //     .iter()
-        //     .enumerate()
-        //     .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
-        //     .unwrap()
-        //     .0;
-
-        // let mut scalingfactorpoints = SCALINGFACTOR / 2.;
-        // if alternate && INVERTING {
-        //     scalingfactorpoints *= -1.;
-        // }
-
-        // alternate = !alternate;
-        // current_target = Pos2 {
-        //     x: spectrum[maxpointstuff] as f32 / scalingfactorpoints,
-        //     y: spectrum[maxpointstuff - 1] as f32 / (scalingfactorpoints/* 100.*/),
-        // };
         current_target = Pos2 {
             x: spectrum[0] as f32 / 25.,
             y: spectrum[spectrum.len() - 1] as f32 / 25.,
         };
 
-        // println!("{:?}", current_target);
-        // if data.abs() > maxfound {
-        //     maxfound = data.abs();
-        // }
-        // using the maxfound value to normalize the data
-        // let data = data / maxfound;
-
-        // println!("latest_audio_data: {:?}", data);
-
-        // clear the buffer
         buffer
             .par_iter_mut()
             .for_each(|x| *x = (Color::from_argb(*x) * Color::new(0, 0, 0, 255)).to_argb());
@@ -506,7 +390,6 @@ fn main() {
                     if (x < WIDTH) && (y < HEIGHT) {
                         Some((
                             x + y * WIDTH,
-                            // *color,
                             Color::from_hsva(
                                 ((point.velocity.x.abs() + point.velocity.y.abs()) * 1000.).sqrt()
                                     % 1.,
@@ -525,19 +408,13 @@ fn main() {
             .collect::<Vec<Option<(usize, Color)>>>();
         if settings.SHOWCURSOR {
             let point = (current_target * WIDTH as f32) + center;
-            // | 0 | 0 | x | x | x | 0 | 0 |
-            // | 0 | x | x | x | x | x | 0 |
-            // | x | x | x | x | x | x | x |
-            // | x | x | x | p | x | x | x |
-            // | x | x | x | x | x | x | x |
-            // | 0 | x | x | x | x | x | 0 |
-            // | 0 | 0 | x | x | x | 0 | 0 |
+
             let mut offsets: Vec<((f32, f32), Color)> = Vec::new();
             for x in -25..=25 {
                 for y in -25..=25 {
                     let tx = x as f32;
                     let ty = y as f32;
-                    // if tx and ty are both within a circle around 0.0, 0.0. push them to the offsets
+
                     let distfromorigin = (tx * tx + ty * ty).sqrt();
                     if distfromorigin <= 3. {
                         offsets
@@ -562,24 +439,9 @@ fn main() {
         }
         stufftodraw.append(&mut pointstodraw);
         for (index, color) in stufftodraw.into_iter().flatten() {
-            // buffer[index] =
-            //     ((buffer[index] as u128 + color.to_argb() as u128) % u32::MAX as u128) as u32;
             buffer[index] = (Color::from_argb(buffer[index]) + color).to_argb();
         }
-        // for (smooth, color) in points.iter() {
-        //     let pos = (smooth.value * WIDTH as f32) + center;
-        //     if pos.x >= 0. && pos.y >= 0. {
-        //         let x = pos.x as usize;
-        //         let y = pos.y as usize;
-        //         if (x < WIDTH) && (y < HEIGHT) {
-        //             // if buffer[x + y * WIDTH] == 0 {
-        //             buffer[x + y * WIDTH] = ((buffer[x + y * WIDTH] as u128 + *color as u128)
-        //                 % u32::MAX as u128) as u32;
-        //             // } else {
-        //             // }
-        //         }
-        //     }
-        // }
+
         let mouse_pos = window
             .get_mouse_pos(minifb::MouseMode::Clamp)
             .unwrap_or((0., 0.));
@@ -587,7 +449,7 @@ fn main() {
             x: (mouse_pos.0 / WIDTH as f32) - 0.5,
             y: ((mouse_pos.1 / HEIGHT as f32) - 0.5) / settings.ASPECTRATIO as f32,
         };
-        // println!("{:?}", mouse_pos);
+
         let target = match window.get_mouse_down(minifb::MouseButton::Left) {
             true => mouse_pos,
             false => current_target,
@@ -621,23 +483,7 @@ fn get_points(settings: Settings) -> Vec<(Smooth<Pos2>, Color)> {
     for _ in 0..settings.POINTCOUNT {
         let randspeed = rand::random::<f32>();
         let randdamp = rand::random::<f32>();
-        // let color = rand::random::<u32>();
-        // let mut r = rand::random::<f64>() * 255.;
-        // let mut g = rand::random::<f64>() * 255.;
-        // let mut b = rand::random::<f64>() * 255.;
 
-        // let total = r + g + b;
-
-        // r /= total;
-        // g /= total;
-        // b /= total;
-
-        // r *= AVERAGECOLOR;
-        // g *= AVERAGECOLOR;
-        // b *= AVERAGECOLOR;
-
-        // let color = Color::new(r.floor() as u8, g.floor() as u8, b.floor() as u8, 255);
-        // ((((randspeed * 0.) + randdamp) * 1.) % 1.) as f32,
         let color = Color::from_hsva(randspeed + randdamp / 2., 1.0, 1.0, 1.0);
         let speed = (randspeed * settings.MAXSPEED) + settings.MINSPEED;
         let damping = (randdamp * settings.MINDAMPING) + settings.MAXDAMPING;
@@ -671,14 +517,13 @@ fn select_input_dev() -> cpal::Device {
         );
     });
     let mut input = String::new();
-    // let input = "6".to_string();
+
     stdin().lock().read_line(&mut input).unwrap();
     let index = input[0..1].parse::<usize>().unwrap();
     devs.remove(index).1
 }
 
 pub fn init_ringbuffer(sampling_rate: usize) -> Arc<Mutex<AllocRingBuffer<f32>>> {
-    // Must be a power (ringbuffer requirement).
     let mut buf: AllocRingBuffer<f32> =
         AllocRingBuffer::with_capacity((5 * sampling_rate).next_power_of_two());
     buf.fill(0.0);
