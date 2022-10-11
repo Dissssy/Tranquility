@@ -1,0 +1,19 @@
+[package]
+name = "eguiimgviewer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+audio-visualizer = "0.3.1"
+cpal = "0.13.0"
+minifb = "0.23.0"
+palette = "0.6.1"
+rand = "0.8.5"
+rayon = "1.5.3"
+ringbuffer = "0.8.5"
+serde = {version = "1.0.145", features = ["derive"]}
+serde_json = "1.0.86"
+spectrum-analyzer = "1.2.6"
+# rodio = "0.16.0"
