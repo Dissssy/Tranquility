@@ -1,4 +1,5 @@
 /target
-song.mp3
-stero.mp3
+settings.json
+*.mp3
+*.wav
 src/commentsbackup.rs
